@@ -35,10 +35,23 @@ int main(int argc, char* argv[])
 
   PID pid;
 
+
   double kp = 0.17; // std::stod(argv[1]);
   double ki = 0.0001; // std::stod(argv[2]);
   double kd = 160; //std::stod(argv[3]);
-  double throttle = 1.0; //std::stod(argv[4]);
+  double throttle = 0.3; //std::stod(argv[4]);
+
+  if(argc >= 3)
+  {
+    kp = std::stod(argv[1]);
+    ki = std::stod(argv[2]);
+    kd = std::stod(argv[3]);
+  }
+  if(argc >= 4)
+  {
+    throttle = std::stod(argv[4]);
+  }
+
   pid.Init(kp, ki, kd);
   Twiddle twiddle(pid);
   // TODO: Initialize the pid variable.
