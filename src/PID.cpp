@@ -2,48 +2,80 @@
 
 using namespace std;
 
+#include <cmath>
 /*
 * TODO: Complete the PID class.
 */
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 PID::PID() {}
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 PID::~PID() {}
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void PID::Init(double Kp, double Ki, double Kd) {
   this->Kp = Kp;
   this->Ki = Ki;
   this->Kd = Kd;
-  timestamp_ = system_clock::now();
+  last_timestamp_ = system_clock::now();
 }
-
-void PID::UpdateError(double cte) {
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void PID::Update(double cte, double speed) {
 
   auto now = system_clock::now();
-  double dt = std::chrono::duration_cast<std::chrono::milliseconds>(now-timestamp_).count();
+  double dt = std::chrono::duration_cast<std::chrono::milliseconds>(now-last_timestamp_).count();
+  this->realtive_timestamp += dt;
 
   calculate(cte, dt);
 
+  //this->correction *= speed;
   this->old_cte_ = cte;
-  this->timestamp_ = now;
+  this->last_timestamp_ = now;
 }
-
-double PID::calculate(double cte, double dt)
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void PID::calculate(double cte, double dt)
 {
-  double p, i, d;
+  static double diff_t_avg = 0;
+
+  double p, i, d, diff_t;
   this->cte_sum += cte;
+  this->cte_sum_abs += std::fabs(cte);
+  this->counter++;
+
   p = -this->Kp * cte;
   i = this->Ki * this->cte_sum;
-  d = this->Kd* (cte - this->old_cte_)*(dt*1e-3);
+  diff_t = cte - this->old_cte_;
+
+//  //Don't consider outliers
+//  if(std::abs(diff_t) > 0.05)
+//    return correction;
+
+  diff_t_avg = ((counter-1)*diff_t_avg + std::abs(diff_t))/counter;
+
+  d = this->Kd* (diff_t)*(dt*1e-3);
   correction = p-i-d;
 
+
+  //std::cout << diff_t << " " << diff_t_avg << "\n";
 #if PRINT
   //std::cout << "P: " << p << " I: " << i << " D: " << d << " correction: " << correction <<  " dt: " << dt << std::endl;
 #endif
-
-  return correction;
 }
-
-double PID::TotalError() {
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+double PID::GetTotalError() const{
+  return this->cte_sum;
 }
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+double PID::GetAveragedError() const {
+  return this->cte_sum_abs / counter;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+double PID::GetTimeStamp() const {
+  return this->realtive_timestamp;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+double PID::GetCorrection() const {
+  return this->correction;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 

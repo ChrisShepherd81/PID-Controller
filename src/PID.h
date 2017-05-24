@@ -9,52 +9,36 @@ using std::chrono::system_clock;
 #define PRINT 1
 
 class PID {
-public:
-  /*
-  * Errors
-  */
-  double p_error;
-  double i_error;
-  double d_error;
-
-  /*
-  * Coefficients
-  */ 
+ public:
+  // Coefficients
   double Kp;
   double Ki;
   double Kd;
 
-  /*
-  * Constructor
-  */
   PID();
-
-  /*
-  * Destructor.
-  */
   virtual ~PID();
-
-  /*
-  * Initialize PID.
-  */
   void Init(double Kp, double Ki, double Kd);
+  void Update(double cte, double speed);
 
-  /*
-  * Update the PID error variables given cross track error.
-  */
-  void UpdateError(double cte);
+  // Getters
+  double GetTotalError() const;
+  double GetAveragedError() const;
+  double GetTimeStamp() const;
+  double GetCorrection() const;
 
-  /*
-  * Calculate the total PID error.
-  */
-  double TotalError();
-
-  double correction = 0;
 private:
-  double calculate(double cte, double dt);
+  double correction = 0;
+  double realtive_timestamp = 0;
+  system_clock::time_point last_timestamp_;
+
   double old_cte_ = 0;
   double cte_sum = 0;
-  system_clock::time_point timestamp_;
+
+  //Overflows not handled
+  size_t counter = 0;
+  double cte_sum_abs = 0;
+
+  void calculate(double cte, double dt);
 };
 
 #endif /* PID_H */
