@@ -20,7 +20,7 @@ class Twiddle{
   size_t last_idx_ = 3;
   PID& pid;
   size_t counter = 0;
-  const size_t window = 20;
+  const size_t window = 500;
 
  public:
   Twiddle(PID &pid) : pid(pid){
@@ -106,7 +106,7 @@ class Twiddle{
 
 void updateParameters()
 {
-  std::cout << "Update: " << p_[0] << ","  << p_[1] << ","  << p_[2] << std::endl;
+  //std::cout << "Update: " << p_[0] << ","  << p_[1] << ","  << p_[2] << std::endl;
   pid.Kp = p_[0];
   pid.Ki = p_[1];
   pid.Kd = p_[2];
