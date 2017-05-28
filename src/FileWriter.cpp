@@ -17,6 +17,13 @@ void FileWriter::writeHeader()
   this->writeLine("timestamp,cte,speed,steering_angle,throttle,total_cte,avg_cte");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void FileWriter::writeParameters(double kp, double ki, double kd )
+{
+  std::stringstream ss;
+  ss << "Kp," << kp << ",Ki," << ki << ",Kd," << kd;
+  this->writeLine(ss.str());
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void FileWriter::writeLine(double timestamp, double cte, double speed, double steering_angle,
                            double throttle, double total_cte, double avg_cte )
 {
