@@ -50,6 +50,7 @@ int main(int argc, char* argv[])
 
   FileWriter fileWriter(ss.str());
 
+  fileWriter.writeParameters(kp, ki,kd );
   Twiddle twiddle(pid);
 
 
