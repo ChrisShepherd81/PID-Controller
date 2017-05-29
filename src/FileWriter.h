@@ -15,7 +15,7 @@ class FileWriter {
  public:
   FileWriter(std::string filename);
 
-  void writeLine(double timestamp, double cte, double speed, double steering_angle,
+  void writeLine(double timestamp, double cte, double speed, double angle, double steering_angle,
                  double throttle, double total_cte, double avg_cte );
 
   void writeParameters(double kp, double ki, double kd );

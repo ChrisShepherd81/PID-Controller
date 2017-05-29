@@ -13,34 +13,38 @@
 using json = nlohmann::json;
 
 void reset_simulator(uWS::WebSocket<uWS::SERVER>& ws);
+double normalize(double value);
 std::string hasData(std::string s);
 
 int main(int argc, char* argv[])
 {
   uWS::Hub h;
 
-  PID pid;
+  PID pid_cte;
+  PID pid_speed;
 
   //manual determined values
-  double kp = 0.17;
-  double ki = 0.0001;
-  double kd = 160;
-  double throttle = 0.3;
+  double kp_cte = 0.17;
+  double ki_cte = 0.00042;
+  double kd_cte = 400;
+  double kp_speed = 0.01;
+  double ki_speed = 0.0;
+  double kd_speed = 0.0;
 
   //Set values if parameters given via console parameters
-  if(argc >= 4)
+  if(argc >= 7)
   {
-    kp = std::stod(argv[1]);
-    ki = std::stod(argv[2]);
-    kd = std::stod(argv[3]);
-  }
-  if(argc == 5)
-  {
-    throttle = std::stod(argv[4]);
+    kp_cte = std::stod(argv[1]);
+    ki_cte = std::stod(argv[2]);
+    kd_cte = std::stod(argv[3]);
+    kp_speed = std::stod(argv[4]);
+    ki_speed = std::stod(argv[5]);
+    kd_speed = std::stod(argv[6]);
   }
 
-  //Initialize the pid variable.
-  pid.Init(kp, ki, kd);
+  //Initialize the PID controllers.
+  pid_cte.Init(kp_cte, ki_cte, kd_cte);
+  pid_speed.Init(kp_speed, ki_speed, kd_speed);
 
   //Construct filename with current date time
   auto t = std::time(nullptr);
@@ -50,8 +54,11 @@ int main(int argc, char* argv[])
 
   FileWriter fileWriter(ss.str());
 
-  fileWriter.writeParameters(kp, ki,kd );
-  Twiddle twiddle(pid);
+  fileWriter.writeParameters(kp_cte, ki_cte,kd_cte );
+
+  //values under control
+  double steer_value = 0.0;
+  double throttle = 1.0;
 
 
   h.onMessage([&](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
@@ -62,7 +69,6 @@ int main(int argc, char* argv[])
     {
       auto s = hasData(std::string(data).substr(0, length));
       if (s != "") {
-        //std::cout << s << std::endl;
         auto j = json::parse(s);
         std::string event = j[0].get<std::string>();
         if (event == "telemetry") {
@@ -70,21 +76,31 @@ int main(int argc, char* argv[])
           double cte = std::stod(j[1]["cte"].get<std::string>());
           double speed = std::stod(j[1]["speed"].get<std::string>());
           double angle = std::stod(j[1]["steering_angle"].get<std::string>());
-          double steer_value;
           /*
           * TODO: Calcuate steering value here, remember the steering value is
           * [-1, 1].
           * NOTE: Feel free to play around with the throttle and speed. Maybe use
           * another PID controller to control the speed!
           */
+          if(std::fabs(cte) > 2.5) //car is off road
+          {
+            reset_simulator(ws);
+            std::cout << "BANG\n" << std::endl;
+            exit(-1);
+          }
 
-          pid.Update(cte, speed);
-          steer_value = pid.GetCorrection();
+          pid_cte.Update(cte);
+          steer_value = pid_cte.GetCorrection();
+          steer_value = normalize(steer_value);
+
+          pid_speed.Update(std::fabs(steer_value));
+          throttle = 1 + pid_speed.GetCorrection();
+          throttle = normalize(throttle);
 
 #if PRINT
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value << "Speed: " << speed << std::endl;
+          std::cout << "CTE: " << cte <<  " Angle: " << angle << " Steering Value: " << steer_value <<  " Diff: " <<  (angle/25.0)-steer_value<<" Speed: " << speed << " Throttle: " << throttle << std::endl;
 #endif
-          fileWriter.writeLine(pid.GetTimeStamp(), cte, speed, steer_value, throttle, pid.GetTotalError(), pid.GetAveragedError() );
+          fileWriter.writeLine(pid_cte.GetTimeStamp(), cte, speed, angle, steer_value, throttle, pid_cte.GetTotalError(), pid_cte.GetAveragedError() );
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
@@ -159,4 +175,13 @@ void reset_simulator(uWS::WebSocket<uWS::SERVER>& ws)
     // reset
     std::string msg("42[\"reset\", {}]");
     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+}
+
+double normalize(double value)
+{
+  if(value > 1.0)
+    value = 1.0;
+  if(value < -1.0)
+    value = -1.0;
+  return value;
 }

@@ -17,7 +17,6 @@ class Twiddle{
   double dp_[PARAMS] = {0,0,0};
   bool rerun_[PARAMS] = {false, false, false};
   size_t idx_ = 0;
-  size_t last_idx_ = 3;
   PID& pid;
   size_t counter = 0;
   const size_t window = 500;

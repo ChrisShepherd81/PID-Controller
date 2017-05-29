@@ -19,54 +19,47 @@ void PID::Init(double Kp, double Ki, double Kd) {
   last_timestamp_ = system_clock::now();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void PID::Update(double cte, double speed) {
+void PID::Update(double error) {
 
   auto now = system_clock::now();
   double dt = std::chrono::duration_cast<std::chrono::milliseconds>(now-last_timestamp_).count();
   this->realtive_timestamp += dt;
 
-  calculate(cte, dt);
+  calculate(error, dt);
 
   //this->correction *= speed;
-  this->old_cte_ = cte;
+  this->old_error_ = error;
   this->last_timestamp_ = now;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void PID::calculate(double cte, double dt)
+void PID::calculate(double error, double dt)
 {
   static double diff_t_avg = 0;
 
   double p, i, d, diff_t;
-  this->cte_sum += cte;
-  this->cte_sum_abs += std::fabs(cte);
+  this->error_sum += error;
+  this->error_sum_abs += std::fabs(error);
+  this->error_sum_sum += error_sum;
+
+  std::cout << this->error_sum_sum << std::endl;
   this->counter++;
 
-  p = -this->Kp * cte;
-  i = this->Ki * this->cte_sum;
-  diff_t = cte - this->old_cte_;
-
-//  //Don't consider outliers
-//  if(std::abs(diff_t) > 0.05)
-//    return correction;
+  p = -this->Kp * error;
+  i = this->Ki * this->error_sum;
+  diff_t = error - this->old_error_;
 
   diff_t_avg = ((counter-1)*diff_t_avg + std::abs(diff_t))/counter;
 
   d = this->Kd* (diff_t)*(dt*1e-3);
   correction = p-i-d;
-
-
-  //std::cout << diff_t << " " << diff_t_avg << "\n";
-#if PRINT
-  //std::cout << "P: " << p << " I: " << i << " D: " << d << " correction: " << correction <<  " dt: " << dt << std::endl;
-#endif
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 double PID::GetTotalError() const{
-  return this->cte_sum;
+  return this->error_sum;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 double PID::GetAveragedError() const {
-  return this->cte_sum_abs / counter;
+  return this->error_sum_abs / counter;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 double PID::GetTimeStamp() const {
