@@ -2,15 +2,12 @@
 #define PID_H
 
 #include <iostream>
-#include <chrono>
+#include <cmath>
 
-using std::chrono::system_clock;
-
-#define PRINT 1
+#define PRINT 0
 
 class PID {
  public:
-  double error_sum_sum = 0;
   // Coefficients
   double Kp;
   double Ki;
@@ -18,23 +15,23 @@ class PID {
 
   PID();
   virtual ~PID();
-  void Init(double Kp, double Ki, double Kd);
-  void Update(double error);
+  void Init(double target, double Kp, double Ki, double Kd);
+  void Update(double error, double x);
 
   // Getters
   double GetTotalError() const;
   double GetAveragedError() const;
-  double GetTimeStamp() const;
   double GetCorrection() const;
 
 private:
   double correction = 0;
-  double realtive_timestamp = 0;
-  system_clock::time_point last_timestamp_;
+  double last_x_ = -1;
 
+  double target_ = 0;
   double old_error_ = 0;
   double error_sum = 0;
   double error_sum_abs = 0;
+  double error_int = 0;
 
   //Overflows not handled
   size_t counter = 0;

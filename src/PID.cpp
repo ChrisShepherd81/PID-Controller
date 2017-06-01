@@ -1,57 +1,61 @@
 #include "PID.h"
-
-using namespace std;
-
-#include <cmath>
-/*
-* TODO: Complete the PID class.
-*/
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 PID::PID() {}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 PID::~PID() {}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void PID::Init(double Kp, double Ki, double Kd) {
+void PID::Init(double target, double Kp, double Ki, double Kd) {
   this->Kp = Kp;
   this->Ki = Ki;
   this->Kd = Kd;
-  last_timestamp_ = system_clock::now();
+  this->target_ = target;
+  this->counter = 0;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void PID::Update(double error) {
+void PID::Update(double error, double x)
+{
+  //Omit first update and initialize last_x and old_error
+  if(this->last_x_ < 0){
+    this->last_x_ = x;
+    this->old_error_ = error;
+    return;
+  }
 
-  auto now = system_clock::now();
-  double dt = std::chrono::duration_cast<std::chrono::milliseconds>(now-last_timestamp_).count();
-  this->realtive_timestamp += dt;
+  double dx = x - this->last_x_;
+  calculate(error, dx);
 
-  calculate(error, dt);
-
-  //this->correction *= speed;
   this->old_error_ = error;
-  this->last_timestamp_ = now;
+  this->last_x_ = x;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void PID::calculate(double error, double dt)
 {
-  static double diff_t_avg = 0;
-
   double p, i, d, diff_t;
   this->error_sum += error;
   this->error_sum_abs += std::fabs(error);
-  this->error_sum_sum += error_sum;
+  this->error_int += 0.5*dt*(error+this->old_error_);
 
-  std::cout << this->error_sum_sum << std::endl;
   this->counter++;
 
+  //Calculate P part
   p = -this->Kp * error;
-  i = this->Ki * this->error_sum;
+
+  //Calculate I part
+  i = this->Ki * this->error_int;
+
+  //Calculate D part
   diff_t = error - this->old_error_;
+  d = this->Kd* (diff_t)*dt;
 
-  diff_t_avg = ((counter-1)*diff_t_avg + std::abs(diff_t))/counter;
+  //Calculate correction
+  correction = this->target_ + (p-i-d);
 
-  d = this->Kd* (diff_t)*(dt*1e-3);
-  correction = p-i-d;
+#if PRINT
+  std::cout << "Pid(" << error << "," << dt << ") = " << correction << " = " << this->target_  << " + "
+                                                                << -Kp << "*" << error << " - "
+                                                                << Ki <<  "*" << this->error_int << " - "
+                                                                << Kd << "*" << diff_t << std::endl;
+#endif
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 double PID::GetTotalError() const{
@@ -60,10 +64,6 @@ double PID::GetTotalError() const{
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 double PID::GetAveragedError() const {
   return this->error_sum_abs / counter;
-}
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double PID::GetTimeStamp() const {
-  return this->realtive_timestamp;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 double PID::GetCorrection() const {

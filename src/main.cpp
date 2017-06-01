@@ -3,17 +3,22 @@
 #include <math.h>
 #include <iomanip>
 #include <ctime>
+#include <chrono>
 
 #include "json.hpp"
 #include "PID.h"
 #include "Twiddle.h"
 #include "FileWriter.h"
 
+#define PRINT_STATS 0
+#define WRITE_OUTPUT 0
+
 // for convenience
 using json = nlohmann::json;
+using std::chrono::system_clock;
 
 void reset_simulator(uWS::WebSocket<uWS::SERVER>& ws);
-double normalize(double value);
+double normalize(double value, double min=-1.0, double max=1.0);
 std::string hasData(std::string s);
 
 int main(int argc, char* argv[])
@@ -24,12 +29,13 @@ int main(int argc, char* argv[])
   PID pid_speed;
 
   //manual determined values
-  double kp_cte = 0.17;
-  double ki_cte = 0.00042;
-  double kd_cte = 400;
-  double kp_speed = 0.01;
+  double kp_cte = 0.25;
+  double ki_cte = 0.08;
+  double kd_cte = 300;
+
+  double kp_speed = 0.14;
   double ki_speed = 0.0;
-  double kd_speed = 0.0;
+  double kd_speed = 2.0;
 
   //Set values if parameters given via console parameters
   if(argc >= 7)
@@ -42,10 +48,15 @@ int main(int argc, char* argv[])
     kd_speed = std::stod(argv[6]);
   }
 
-  //Initialize the PID controllers.
-  pid_cte.Init(kp_cte, ki_cte, kd_cte);
-  pid_speed.Init(kp_speed, ki_speed, kd_speed);
+  //values under control
+  double steer_value = 0.0;
+  double throttle = 1.0;
 
+  //Initialize the PID controllers.
+  pid_cte.Init(0.0, kp_cte, ki_cte, kd_cte);
+  pid_speed.Init(1.0, kp_speed, ki_speed, kd_speed);
+
+#if WRITE_OUTPUT
   //Construct filename with current date time
   auto t = std::time(nullptr);
   auto tm = *std::localtime(&t);
@@ -54,12 +65,17 @@ int main(int argc, char* argv[])
 
   FileWriter fileWriter(ss.str());
 
-  fileWriter.writeParameters(kp_cte, ki_cte,kd_cte );
+  fileWriter.writePidParameters("PID_cte:", kp_cte, ki_cte,kd_cte );
+  fileWriter.writePidParameters("PID_speed:", kp_speed, ki_speed,kd_speed );
+  fileWriter.writeLine("Opt:none");
+  size_t time_start = 0;
+#endif
 
-  //values under control
-  double steer_value = 0.0;
-  double throttle = 1.0;
-
+#if PRINT_STATS
+  double max_speed = 0;
+  double avg_speed = 0;
+  size_t counter = 0;
+#endif
 
   h.onMessage([&](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -76,37 +92,50 @@ int main(int argc, char* argv[])
           double cte = std::stod(j[1]["cte"].get<std::string>());
           double speed = std::stod(j[1]["speed"].get<std::string>());
           double angle = std::stod(j[1]["steering_angle"].get<std::string>());
-          /*
-          * TODO: Calcuate steering value here, remember the steering value is
-          * [-1, 1].
-          * NOTE: Feel free to play around with the throttle and speed. Maybe use
-          * another PID controller to control the speed!
-          */
-          if(std::fabs(cte) > 2.5) //car is off road
+          size_t time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(system_clock::now().time_since_epoch()).count();
+
+          //Check if car is off the road
+          if(std::fabs(cte) > 3.0)
           {
             reset_simulator(ws);
             std::cout << "BANG\n" << std::endl;
             exit(-1);
           }
 
-          pid_cte.Update(cte);
+          //Calculate steering angle
+          pid_cte.Update(cte, time_ms*1e-3);
           steer_value = pid_cte.GetCorrection();
           steer_value = normalize(steer_value);
 
-          pid_speed.Update(std::fabs(steer_value));
-          throttle = 1 + pid_speed.GetCorrection();
+          //Calculate throttle
+          pid_speed.Update(std::fabs(cte)*speed*std::fabs(steer_value), time_ms*1e-3);
+          throttle = pid_speed.GetCorrection();
           throttle = normalize(throttle);
 
-#if PRINT
-          std::cout << "CTE: " << cte <<  " Angle: " << angle << " Steering Value: " << steer_value <<  " Diff: " <<  (angle/25.0)-steer_value<<" Speed: " << speed << " Throttle: " << throttle << std::endl;
-#endif
-          fileWriter.writeLine(pid_cte.GetTimeStamp(), cte, speed, angle, steer_value, throttle, pid_cte.GetTotalError(), pid_cte.GetAveragedError() );
+#if PRINT_STATS
+          //Calculate average speed
+          counter++;
+          avg_speed = ((avg_speed * (counter-1)) + speed)/counter;
 
+          //Remember maximum speed
+          if(speed > max_speed)
+            max_speed = speed;
+
+          std::cout << "CTE: " << cte <<  " Angle: " << angle << " Steering Value: " << steer_value
+                    << " Diff: " <<  (angle/25.0)-steer_value<<" Speed: " << speed
+                    << " Throttle: " << throttle << " Avg. speed: " << avg_speed
+                    << " Max speed: " << max_speed << std::endl;
+#endif
+#if WRITE_OUTPUT
+          if(time_start <= 0)
+            time_start = time_ms;
+
+          fileWriter.writeLine(time_ms-time_start, cte, speed, angle, steer_value, throttle, pid_cte.GetTotalError(), pid_cte.GetAveragedError() );
+#endif
           json msgJson;
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = throttle;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          //std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
@@ -177,11 +206,11 @@ void reset_simulator(uWS::WebSocket<uWS::SERVER>& ws)
     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 }
 
-double normalize(double value)
+double normalize(double value, double min, double max)
 {
-  if(value > 1.0)
-    value = 1.0;
-  if(value < -1.0)
-    value = -1.0;
+  if(value > max)
+    value = max;
+  if(value < min)
+    value = min;
   return value;
 }
