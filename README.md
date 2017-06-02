@@ -3,7 +3,7 @@
 
 # Problem Description
 
-The task is to keep a car on a given track controlling the steering angle within the range [-25°, 25°] and a throttle within [0, 1]. The measured values are the cross-track-error (CTE) for the current position of the car as well as the speed of the car. 
+The task is to keep a car on a given track controlling the steering angle within the range [-25°, 25°] and a throttle within [-1, 1]. The measured values are the cross-track-error (CTE) for the current position of the car as well as the speed of the car. 
 The task is to maximize the speed while keeping the car on the street (minimize the CTE). 
 
 # Limitations
