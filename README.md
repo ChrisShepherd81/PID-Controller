@@ -14,8 +14,18 @@ It's not possible to set the start position of the car within the test track nor
 
 - High steering angles reduces also the speed of the car.
 - CTE measurement errors. For example at start and at end of the bridge in the test track.
+- New telemetry data will only be send after sending a steer command to the simulator. So processing time affects the sampling rate.
 
 # Overview
 
 ![controller diagram](./img/PID_PD_Car.png "Controller diagram")
+
+# Parameter search
+
 # Results
+
+To reduce load on the test machine and increase sampling time by minimizing the response time, the implementation is tested with the lowest simulator details and resolution of .
+
+Without video capturing a average speed of approximately 45 mph (72.42 km/h) and a maximum speed of around 75 mph (120.7 km/h) can be achieved. Although the car sometimes oscillate a lot around the track center (still it's not an good idea to drink and drive) it keeps staying on the track without touching the road surface marking.
+
+[![Drive video](./img/Drive.png)](./img/Drive.mov)
