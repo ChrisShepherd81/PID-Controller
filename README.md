@@ -12,8 +12,8 @@ It's not possible to set the start position of the car within the test track nor
 
 # Considerations
 
-High steering angles reduces also the speed of the car.
-CTE measurement errors. For example at start and at end of the bridge in the test track.
+- High steering angles reduces also the speed of the car.
+- CTE measurement errors. For example at start and at end of the bridge in the test track.
 
 # Overview
 
