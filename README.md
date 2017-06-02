@@ -22,6 +22,10 @@ It's not possible to set the start position of the car within the test track nor
 
 # Parameter search
 
+The PID parameters for steering control kp, ki and kd where found in a manual trail and error tuning manner. To objectify the process of tuning, the CTE over time where printed in a graph and evaluated for every parameter change for the first 500 telemetry updates using R. The video below illustrate the process (without being in the correct order).
+
+[![Tuning video](./img/parameter_search.png)](./img/parameter_search.mp4)
+
 # Results
 
 To reduce load on the test machine and increase sampling time by minimizing the response time, the implementation is tested with the lowest simulator details and resolution of 640x480.
